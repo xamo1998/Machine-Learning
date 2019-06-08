@@ -4,7 +4,7 @@ I am going to be using the fllowing repository: [hanson-ml](https://github.com/a
 
 ## Index
 
-- [Chapter 1: The Machine Learning Landscape](Chapter 1 _ The machine Learning Landscape/README.md)
+- [Chapter 1: The Machine Learning Landscape](Chapter_1_The_machine_Learning_Landscape/README.md)
 
 ## installation
 
