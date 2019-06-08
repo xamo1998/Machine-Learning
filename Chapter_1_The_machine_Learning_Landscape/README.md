@@ -1,7 +1,5 @@
 # Chapter 1: The Machine Learning Landscape
 
-## Index
-
 ## Types of Machine Learning Systems
 
 There are so many different types of Machine Learning systems:
@@ -18,10 +16,10 @@ There are so many different types of Machine Learning systems:
   - [Online](#online-learning)
   - [Batch](#batch-learning)
 
-- [How they work
+- [How they work](#instance-based-versus-model-based-learning)
 
-  - [Comparing new data points to known data points
-  - [Detect patterns in the training data and build a predictive model
+  - [Comparing new data points to known data points](#instance-based-learning)
+  - [Detect patterns in the training data and build a predictive model](#model-based-learning)
 
 **You can combine them** in any way you like.
 
@@ -90,3 +88,15 @@ In _online learning_, you train the system incrementally by feeding it data inst
 Online learning algorithms can also be used to train systems on huge datasets that cannot fit in one machine's main memory (this is called _out-of-core_ learning). The algorithm loads part of the data, runs a training step on that data, and repeats the process until it has run on all of the data.
 
 ![Online Learning](../img/chp1_online_learning.png?raw=true "Online Learning")
+
+### Instance-Based Versus Model-Based Learning
+
+One more way to categorize Machine Learning systems is by how they _generalize_. Most Machine Learning tasks are about making predictions. This means that given a number of training examples, the system needs to be able to generalize to examples it has never seen before. Having a good performance measure on the training data is good, but insufficient; the true goal is to perform well on new instances. There are two main approaches to generalization: instance-based learning and model-based learning.
+
+#### Instance-based learning
+
+Following the example of the spam filter, one solutions for the implementation is to flag emails that are identical to known spam emails. This solution is a little restrictive so maybe we could flag emails that are **very similar** to known spam ones. This requires a _measure of similarity_ between two emails. For example, we could count the words they have in common.
+
+#### Model-based learning
+
+Another way to generalize from a set of examples is to build a model of these examples, then use that model to make _predictions_. This is called _model-based learning_.
