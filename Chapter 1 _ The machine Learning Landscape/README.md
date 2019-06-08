@@ -1,5 +1,7 @@
 # Chapter 1: The Machine Learning Landscape
 
+## Index
+
 ## Types of Machine Learning Systems
 
 There are so many different types of Machine Learning systems:
@@ -31,24 +33,17 @@ Here we will see the four types we mentioned before.
 
 The training data you feed to the algorithm includes the desired solutions, called _labels_.
 
-<center>
-  <img src="../img/chp1_classification.png?raw=true" alt="Classification" title="Classification">
-</center>
+![Classification](../img/chp1_classification.png?raw=true "Classification")
 
-<br>
-A typical supervised learning task is **_classification_**. **For example**, in a spam filter you provide many example emails along with their _class_ (spam or ham), and it must learn to classify new emails. Another typical task is to predict a _target_ numeric value, such as the price of a car, given a set of _features_ called _predictors_. This sort of task is called **_regression_**. 
+A typical supervised learning task is **_classification_**. **For example**, in a spam filter you provide many example emails along with their _class_ (spam or ham), and it must learn to classify new emails. Another typical task is to predict a _target_ numeric value, such as the price of a car, given a set of _features_ called _predictors_. This sort of task is called **_regression_**.
 
-<center>
-  <img src="../img/chp1_regression.png?raw=true" alt="Regression" title="Regression">
-</center>
+![Regression](../img/chp1_regression.png?raw=true "Regression")
 
 #### Unsupervised Learning
 
 The training data is unlabeled. The system tries to learn without a teacher.
 
-<center>
-  <img src="../img/chp1_unsupervised_training_set.png?raw=true" alt="Training set" title="Training set">
-</center>
+![Training set](../img/chp1_unsupervised_training_set.png?raw=true "Training set")
 
 Here are some of the most important unsipervised learning algorithms:
 
@@ -78,9 +73,7 @@ Some algorithms can deal with partially labeled training data, usually a lot of 
 
 _Reinforcement Learning_ is a very different beast. The learning system, called an _agent_ in this context, can observe the environment, select and perform actions, and get _rewards_ in return. It must then learn by itself what is the best strategy, called a _policy_, to get the most reward over time. A policy defines what action the agent should choose when it is in a given situation.
 
-<center>
-  <img src="../img/chp1_reinforcement_learning.png?raw=true" alt="Reinforcement Learning" title="Reinforcement Learning">
-</center>
+![Reinforcement Learning](../img/chp1_reinforcement_learning.png?raw=true "Reinforcement Learning")
 
 ### Can learn incrementally on the fly
 
@@ -96,6 +89,4 @@ In _online learning_, you train the system incrementally by feeding it data inst
 
 Online learning algorithms can also be used to train systems on huge datasets that cannot fit in one machine's main memory (this is called _out-of-core_ learning). The algorithm loads part of the data, runs a training step on that data, and repeats the process until it has run on all of the data.
 
-<center>
-  <img src="../img/chp1_online_learning.png?raw=true" alt="Online Learning" title="Online Learning">
-</center>
+![Online Learning](../img/chp1_online_learning.png?raw=true "Online Learning")
