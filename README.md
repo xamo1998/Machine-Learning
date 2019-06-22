@@ -10,6 +10,7 @@ I am going to be using the fllowing repository: [hanson-ml](https://github.com/a
 ## installation
 
 Install Python from the [website](https://www.python.org/downloads/). Also make sure you are using Python >= 2.6 (**Python 3.6.X** is preferable because Python 3.7 at this moment is not compatible with Tensorflow)
+Make sure to **add** python to the environment path.
 
 ### Using pip
 
