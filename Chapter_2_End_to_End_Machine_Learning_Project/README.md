@@ -93,21 +93,22 @@ Both the RMSE and the MAE are ways to **measure the distance between two vectors
 the vector of predictions and the vector of target values. Various distance measures,
 or *norms*, are possible:
 
-- Computing the root of a sum of squares (RMSE) corresponds to the *Euclidian norm*: it is the notion of distance you are familiar with. It is also called the ℓ~2~ *norm*, noted || · ||~2~ (or just || · ||).
-- Computing the sum of absolutes (MAE) corresponds to the ℓ~1~ *norm*, noted || · ||~1~. It is sometimes called the *Manhattan norm* because it measures the distance between two points in a city if you can only travel along orthogonal city blocks.
+- Computing the root of a sum of squares (RMSE) corresponds to the *Euclidian norm*: it is the notion of distance you are familiar with. It is also called the ℓ<sub>2</sub> *norm*, noted || · ||<sub>2</sub> (or just || · ||).
+- Computing the sum of absolutes (MAE) corresponds to the ℓ<sub>1</sub> *norm*, noted || · ||<sub>1</sub>. It is sometimes called the *Manhattan norm* because it measures the distance between two points in a city if you can only travel along orthogonal city blocks.
  - More generally, the ℓ~k~ *norm* of a vector **v** containing *n* elements is defined as
 <p align="center">
 <img src="https://latex.codecogs.com/gif.latex?%5Cleft%20%5C%7C%20v%20%5Cright%20%5C%7C_k%3D%28%5Cleft%20%7C%20v_0%20%5Cright%20%7C%5Ek%20&plus;%20%5Cleft%20%7C%20v_1%20%5Cright%20%7C%5Ek%20&plus;%20%5Ccdots%20&plus;%5Cleft%20%7C%20v_n%20%5Cright%20%7C%5Ek%29%5E%7B%5Cfrac%7B1%7D%7Bk%7D%7D" alt="Equation"/>
 </p>
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ℓ~0~ just gives the cardinality of the vector (i.e., the number of elements), and ℓ~∞~ gives the maximum absolute value in the vector.
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ℓ<sub>0</sub> just gives the cardinality of the vector (i.e., the number of elements), and ℓ<sub>∞</sub> gives the maximum absolute value in the vector.
  - The higher the norm index, the more it focuses on large values and neglects small ones. This is why the RMSE is more sensitive to outliers than the MAE. But when outliers are exponentially rare (like in a bell-shaped curve), the RMSE performs very well and is generally preferred.
 
 
 ## Get the data
 The code will be using can be found in [ttps://github.com/ageron/handson-ml](ttps://github.com/ageron/handson-ml).
 ### Create the Workspace
-Make sure you have everything installed as we saw in the [Installation](https://github.com/xamo1998/Machine-Learning) guide.
+Make sure you have everything installed as we saw in the [Installation](https://github.com/xamo1998/Machine-Learning#installation) guide.
+### Downloading the Data
 ## Discover and visualize the data to gain insights
 
 ## Prepare the data for Machine Learning algorithms
