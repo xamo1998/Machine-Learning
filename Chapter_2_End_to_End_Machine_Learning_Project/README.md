@@ -145,7 +145,7 @@ housing.info() #Or print(housing.info())
 
 If we run the code below we will get the following output:
 
-![Housing Data Info](../img/chp2_housing_data_info.png?raw=true "Housing Data Info")
+![Housing Data Info](../img/chp2_housing_data_info.PNG?raw=true "Housing Data Info")
 
 There are 20,640 instances in the dataset, which means that is fairly small by Machine Learning standards, but is perfect to get started.
 
@@ -162,7 +162,7 @@ print(housing['ocean_proximity'].value_counts())
 
 If we run the code below we will get the following output:
 
-![Housing Data Value Counts](../img/chp2_housing_data_value_counts.png?raw=true "Housing Data Value Counts")
+![Housing Data Value Counts](../img/chp2_housing_data_value_counts.PNG?raw=true "Housing Data Value Counts")
 
 Let's look at the other fields. The *desribe()* method shows a summary of the numerical attributes:
 
@@ -175,7 +175,7 @@ print(housing.describe())
 
 If we run the code below we will get the following output:
 
-![Housing Data Describe](../img/chp2_housing_data_describe.png?raw=true "Housing Data Describe")
+![Housing Data Describe](../img/chp2_housing_data_describe.PNG?raw=true "Housing Data Describe")
 
 The *count*, *mean*, *min*, and *max* rows are self-explanatory. Note that the *null values* are ignored (so, for example, count of *total_bedrooms* is 20,433, not 20,640). The *std* row shows the standard deviation (which measures how dispersed the values are).
 
@@ -329,7 +329,7 @@ proportions in the full housing dataset:
 print(housing["income_cat"].value_counts() / len(housing))
 ```
 
-![Housing Data Stratified](../img/chp2_housing_data_stratified.png?raw=true "Housing Data Stratified")
+![Housing Data Stratified](../img/chp2_housing_data_stratified.PNG?raw=true "Housing Data Stratified")
 
 
 Now you should remove the income_cat attribute so the data is back to its original
