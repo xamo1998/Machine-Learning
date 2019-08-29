@@ -5,7 +5,7 @@ import numpy as np
 import hashlib
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import StratifiedShuffleSplit
-
+from pandas.plotting import scatter_matrix
 
 def load_housing_data(housing_path="dataset\housing"):
     csv_path= os.path.join(housing_path,"housing.csv")
@@ -66,4 +66,33 @@ split = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
 for train_index, test_index in split.split(housing, housing["income_cat"]):
   strat_train_set = housing.loc[train_index]
   strat_test_set = housing.loc[test_index]
-print(housing["income_cat"].value_counts() / len(housing))
+
+for set in (strat_train_set, strat_test_set):
+    set.drop(["income_cat"], axis=1, inplace=True)
+#print(housing["income_cat"].value_counts() / len(housing))
+#housing = strat_train_set.copy()
+
+#housing.plot(kind="scatter", x="longitude", y="latitude", alpha=0.1)
+'''
+housing.plot(kind="scatter", x="longitude", y="latitude", alpha=0.4,
+            s=housing["population"]/100, label="population",
+            c="median_house_value", cmap=plt.get_cmap("jet"), colorbar=True)
+plt.legend()
+#plt.show()
+'''
+
+'''
+corr_matrix= housing.corr()
+print(corr_matrix["median_house_value"].sort_values(ascending=False))
+'''
+
+attributes = ["median_house_value", "median_income", "total_rooms",
+"housing_median_age"]
+scatter_matrix(housing[attributes], figsize=(12, 8))
+'''
+housing.plot(kind="scatter", x="median_income", y="median_house_value",
+alpha=0.1)
+plt.show()
+'''
+corr_matrix=housing.corr()
+print(corr_matrix["median_house_value"].sort_values(ascending=False))

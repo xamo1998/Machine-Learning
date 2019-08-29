@@ -206,8 +206,8 @@ Notice a few things in these histograms:
 1. First, the median income attribute does not look like it is expressed in US dollars (USD). After checking with the team that collected the data, you are told that the data has been scaled and capped at 15 (actually 15.0001) for higher median incomes, and at 0.5 (actually 0.4999) for lower median incomes. Working with preprocessed attributes is common in Machine Learning, and it is not necessarily a problem, but you should try to understand how the data was computed.
 
 2. The housing median age and the median house value were also capped. The latter may be a serious problem since it is your target attribute (your labels). Your Machine Learning algorithms may learn that prices never go beyond that limit. You need to check with your client team (the team that will use your system’s output) to see if this is a problem or not. If they tell you that they need precise predictions even beyond $500,000, then you have mainly two options:
-  - Collect proper labels for the districts whose labels were capped.
-  - Remove those districts from the training set (and also from the test set, since your system should not be evaluated poorly if it predicts values beyond $500,000).
+    - Collect proper labels for the districts whose labels were capped.
+    - Remove those districts from the training set (and also from the test set, since your system should not be evaluated poorly if it predicts values beyond $500,000).
 
 3. These attributes have very different scales. We will discuss this later in this chapter when we explore feature scaling.
 
@@ -340,7 +340,120 @@ for set in (strat_train_set, strat_test_set):
 ```
 We spent quite a bit of time on test set generation for a good reason: this is an often neglected but critical part of a Machine Learning project. Moreover, many of these ideas will be useful later when we discuss cross-validation. Now it’s time to move on to the next stage: exploring the data.
 ## Discover and visualize the data to gain insights
+So far you have only taken a quick glance at the data to get a general understanding of the kind of data you are manipulating. Now the goal is to go a little bit more in depth.
 
+First, make sure you have put the test set aside and you are only exploring the training set. Also, if the training set is very large, you may want to sample an exploration set, to make manipulations easy and fast. In our case, the set is quite small so you can just work directly on the full set. Let’s create a copy so you can play with it without harming the training set:
+```python
+housing = strat_train_set.copy()
+```
+
+### Visualizing Geographical DataFrame
+Since there is geographical information (latitude and longitude), it is a good idea to create a scatterplot of all districts to visualize the data:
+```python
+housing.plot(kind="scatter", x="longitude", y="latitude")
+plt.show()
+```
+
+If we run the code below we will get the following output:
+
+![Housing Geographical Data](../img/chp2_housing_geographical_data.png?raw=true "Housing Geographical Data")
+
+This looks like California all right, but other than that it is hard to see any particular pattern. Setting the alpha option to 0.1 makes it much easier to visualize the places where there is a high density of data points:
+
+```python
+housing.plot(kind="scatter", x="longitude", y="latitude", alpha=0.1)
+plt.show()
+```
+If we run the code below we will get the following output:
+
+![Housing Geographical Data](../img/chp2_housing_geographical_data_alpha01.png?raw=true "Housing Geographical Data")
+
+Now that’s much better: you can clearly see the high-density areas, namely the Bay Area and around Los Angeles and San Diego, plus a long line of fairly high density in the Central Valley, in particular around Sacramento and Fresno.
+
+More generally, our brains are very good at spotting patterns on pictures, but you may need to play around with visualization parameters to make the patterns stand out.
+
+Now let’s look at the housing prices. The radius of each circle represents the district’s population (option s), and the color represents the price (option c). We will use a predefined color map (option cmap) called jet, which ranges from blue (low values) to red (high prices):
+```Python
+housing.plot(kind="scatter", x="longitude", y="latitude", alpha=0.4,
+            s=housing["population"]/100, label="population",
+            c="median_house_value", cmap=plt.get_cmap("jet"), colorbar=True,)
+plt.legend()
+plt.show()
+```
+
+The output is the following:
+
+![Housing Geographical Data Full](../img/chp2_housing_geographical_data_full.png?raw=true "Housing Geographical Data Full")
+
+This image tells us that the housing prices are very much related to the location (e.g., close to the ocean) and to the population density, as you probably knew already. It will probably be useful to use a clustering algorithm to detect the main clusters, and add new features that measure the proximity to the cluster centers. The ocean proximity attribute may be useful as well, although in Northern California the housing
+prices in coastal districts are not too high, so it is not a simple rule.
+### Looking for Correlations
+Since the dataset is not too large, you can easily compute the *standard correlation coefficient* (also called *Pearson’s r*) between every pair of attributes using the *corr()* method:
+```Python
+corr_matrix = housing.corr()
+```
+
+Now let’s look at how much each attribute correlates with the median house value:
+```Python
+print(corr_matrix["median_house_value"].sort_values(ascending=False))
+```
+
+The output is the following:
+
+![Housing Correlation](../img/chp2_housing_corr.png?raw=true "Housing Correlation")
+
+The correlation coefficient ranges from –1 to 1. When it is close to 1, it means that there is a strong positive correlation; for example, the median house value tends to go up when the median income goes up. When the coefficient is close to –1, it means that there is a strong negative correlation; you can see a small negative correlation between the latitude and the median house value (i.e., prices have a slight tendency to go down when you go north). Finally, coefficients close to zero mean that there is no linear correlation.
+
+Another way to check for correlation between attributes is to use Pandas’ *scatter_matrix* function, which plots every numerical attribute against every other numerical attribute. Since there are now 11 numerical attributes, you would get 11^2 = 121 plots, which would not fit on a page, so let’s just focus on a few promising attributes that seem most correlated with the median housing value:
+
+```python
+from pandas.plotting import scatter_matrix
+
+attributes = ["median_house_value", "median_income", "total_rooms", "housing_median_age"]
+scatter_matrix(housing[attributes], figsize=(12, 8))
+plt.show()
+```
+
+The output is the following:
+
+![Housing Correlation All](../img/chp2_housing_corr_all.png?raw=true "Housing Correlation All")
+
+The main diagonal (top left to bottom right) would be full of straight lines if Pandas plotted each variable against itself, which would not be very useful. So instead Pandas displays a histogram of each attribute (other options are available; see Pandas’ documentation for more details).
+
+The most promising attribute to predict the median house value is the median income, so let’s zoom in on their correlation scatterplot:
+```python
+housing.plot(kind="scatter", x="median_income", y="median_house_value", alpha=0.1)
+```
+The output is the following:
+
+![Housing Correlation Median Income](../img/chp2_housing_corr_median_income.png?raw=true "Housing Correlation Median Income")
+
+
+This plot reveals a few things. First, the correlation is indeed very strong; you can clearly see the upward trend and the points are not too dispersed. Second, the price cap that we noticed earlier is clearly visible as a horizontal line at $500,000. But this plot reveals other less obvious straight lines: a horizontal line around $450,000, another around $350,000, perhaps one around $280,000, and a few more below that. You may want to try removing the corresponding districts to prevent your algorithms from learning to reproduce these data quirks.
+
+### Experimenting with Attribute Combinations
+Hopefully the previous sections gave you an idea of a few ways you can explore the data and gain insights. You identified a few data quirks that you may want to clean up before feeding the data to a Machine Learning algorithm, and you found interesting correlations between attributes, in particular with the target attribute. You also noticed that some attributes have a tail-heavy distribution, so you may want to transform them (e.g., by computing their logarithm). Of course, your mileage will vary considerably with each project, but the general ideas are similar.
+
+One last thing you may want to do before actually preparing the data for Machine Learning algorithms is to try out various attribute combinations. For example, the total number of rooms in a district is not very useful if you don’t know how many households there are. What you really want is the number of rooms per household. Similarly, the total number of bedrooms by itself is not very useful: you probably want to compare it to the number of rooms. And the population per household also seems like an interesting attribute combination to look at. Let’s create these new attributes:
+```Python
+housing["rooms_per_household"] = housing["total_rooms"]/housing["households"]
+housing["bedrooms_per_room"] = housing["total_bedrooms"]/housing["total_rooms"]
+housing["population_per_household"]=housing["population"]/housing["households"]
+```
+
+And now let's look at the correlation matrix again:
+```Python
+corr_matrix = housing.corr()
+print(corr_matrix["median_house_value"].sort_values(ascending=False))
+```
+
+The output is the following:
+
+![Housing Correlation Combining Attributes](../img/chp2_combining.png?raw=true "Housing Correlation Combining Attributes")
+
+Hey, not bad! The new *bedrooms_per_room* attribute is much more correlated with the median house value than the total number of rooms or bedrooms. Apparently houses with a lower bedroom/room ratio tend to be more expensive. The number of rooms per household is also more informative than the total number of rooms in a district—obviously the larger the houses, the more expensive they are.
+
+This round of exploration does not have to be absolutely thorough; the point is to start off on the right foot and quickly gain insights that will help you get a first reasonably good prototype. But this is an iterative process: once you get a prototype up and running, you can analyze its output to gain more insights and come back to this exploration step.
 ## Prepare the data for Machine Learning algorithms
 
 ## Select a model and train it
