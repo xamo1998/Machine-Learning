@@ -6,6 +6,46 @@ import hashlib
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import StratifiedShuffleSplit
 from pandas.plotting import scatter_matrix
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import FeatureUnion
+
+rooms_ix, bedrooms_ix, population_ix, household_ix = 3, 4, 5, 6
+class CombinedAttributesAdder(BaseEstimator, TransformerMixin):
+    def __init__(self, add_bedrooms_per_room = True): # no *args or **kargs
+        self.add_bedrooms_per_room = add_bedrooms_per_room
+    def fit(self, X, y=None):
+        return self # nothing else to do
+    def transform(self, X, y=None):
+        rooms_per_household = X[:, rooms_ix] / X[:, household_ix]
+        population_per_household = X[:, population_ix] / X[:, household_ix]
+        if self.add_bedrooms_per_room:
+            bedrooms_per_room = X[:, bedrooms_ix] / X[:, rooms_ix]
+            return np.c_[X, rooms_per_household, population_per_household, bedrooms_per_room]
+        else:
+            return np.c_[X, rooms_per_household, population_per_household]
+
+class MyLabelBinarizer(TransformerMixin):
+    def __init__(self, *args, **kwargs):
+        self.encoder = LabelBinarizer(*args, **kwargs)
+    def fit(self, x, y=0):
+        self.encoder.fit(x)
+        return self
+    def transform(self, x, y=0):
+        return self.encoder.transform(x)
+
+class DataFrameSelector(BaseEstimator, TransformerMixin):
+    def __init__(self, attribute_names):
+        self.attribute_names = attribute_names
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        return X[self.attribute_names].values
 
 def load_housing_data(housing_path="dataset\housing"):
     csv_path= os.path.join(housing_path,"housing.csv")
@@ -95,4 +135,69 @@ alpha=0.1)
 plt.show()
 '''
 corr_matrix=housing.corr()
-print(corr_matrix["median_house_value"].sort_values(ascending=False))
+#print(corr_matrix["median_house_value"].sort_values(ascending=False))
+
+housing = strat_train_set.drop("median_house_value", axis=1)
+housing_labels = strat_train_set["median_house_value"].copy()
+
+housing.drop("total_bedrooms", axis=1)
+
+imputer= SimpleImputer(strategy="median")
+
+housing_num = housing.drop("ocean_proximity", axis=1)
+imputer.fit(housing_num)
+#print(imputer.statistics_)
+X = imputer.transform(housing_num)
+housing_tr = pd.DataFrame(X, columns=housing_num.columns)
+
+
+'''
+encoder = LabelEncoder()
+housing_cat = housing["ocean_proximity"]
+housing_cat_encoded = encoder.fit_transform(housing_cat)
+#print(housing_cat_encoded)
+#print(encoder.classes_)
+
+
+encoder = OneHotEncoder(categories='auto')
+housing_cat_1hot = encoder.fit_transform(housing_cat_encoded.reshape(-1,1))
+print(housing_cat_1hot.toarray())
+'''
+
+housing_cat = housing["ocean_proximity"]
+encoder= LabelBinarizer()
+housing_cat_1hot=encoder.fit_transform(housing_cat)
+#print(housing_cat_1hot)
+
+attr_adder = CombinedAttributesAdder(add_bedrooms_per_room=False)
+housing_extra_attribs = attr_adder.transform(housing.values)
+
+'''
+num_pipeline = Pipeline([
+      ('imputer', Imputer(strategy="median")),
+      ('attribs_adder', CombinedAttributesAdder()),
+      ('std_scaler', StandardScaler()),
+])
+housing_num_tr = num_pipeline.fit_transform(housing_num)
+'''
+
+num_attribs = list(housing_num)
+cat_attribs = ["ocean_proximity"]
+num_pipeline = Pipeline([
+    ('selector', DataFrameSelector(num_attribs)),
+    ('imputer', SimpleImputer(strategy="median")),
+    ('attribs_adder', CombinedAttributesAdder()),
+    ('std_scaler', StandardScaler()),
+])
+cat_pipeline = Pipeline([
+    ('selector', DataFrameSelector(cat_attribs)),
+    ('label_binarizer', MyLabelBinarizer()),
+])
+full_pipeline = FeatureUnion(transformer_list=[
+    ("num_pipeline", num_pipeline),
+    ("cat_pipeline", cat_pipeline),
+])
+
+housing_prepared= full_pipeline.fit_transform(housing)
+#print(housing_prepared)
+print(housing_prepared.shape)

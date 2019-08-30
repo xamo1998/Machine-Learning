@@ -7,8 +7,7 @@ In this chapter we will create a full project, first we will see the main steps 
 4. [Prepare the data for Machine Learning algorithms](#prepare-the-data-for-machine-learning-algorithms)
 5. [Select a model and train it](#select-a-model-and-train-it)
 6. [Fine-tune your model](#fine-tune-your-model)
-7. [Present your solution](#present-your-solution)
-8. [Launch, monitor, and maintain your system](#launch-monitor-and-maintain-your-system)
+7. [Launch, monitor, and maintain your system](#launch-monitor-and-maintain-your-system)
 
 ## Data we will be using
 We will be using the California Housing Prices dataset from the StatLib repository. This dataset was based on data from the 1990 California census. It is not exactly recent, but it has many qualities for learning, so we will pretend it is recent data. We also added a categorical attribute and removed a few features for teaching purposes.
@@ -455,11 +454,249 @@ Hey, not bad! The new *bedrooms_per_room* attribute is much more correlated with
 
 This round of exploration does not have to be absolutely thorough; the point is to start off on the right foot and quickly gain insights that will help you get a first reasonably good prototype. But this is an iterative process: once you get a prototype up and running, you can analyze its output to gain more insights and come back to this exploration step.
 ## Prepare the data for Machine Learning algorithms
+It’s time to prepare the data for your Machine Learning algorithms. Instead of just doing this manually, you should write functions to do that, for several good reasons:
+- This will allow you to reproduce these transformations easily on any dataset (e.g., the next time you get a fresh dataset).
+
+- You will gradually build a library of transformation functions that you can reuse in future projects.
+
+- You can use these functions in your live system to transform the new data before feeding it to your algorithms.
+- This will make it possible for you to easily try various transformations and see which combination of transformations works best.
+
+But first let’s revert to a clean training set (by copying *strat_train_set* once again), and let’s separate the predictors and the labels since we don’t necessarily want to apply the same transformations to the predictors and the target values (note that *drop()* creates a copy of the data and does not affect *strat_train_set*):
+```Python
+housing = strat_train_set.drop("median_house_value", axis=1)
+housing_labels = strat_train_set["median_house_value"].copy()
+```
+### Data Cleaning
+Most Machine Learning algorithms cannot work with missing features, so let’s create a few functions to take care of them. You noticed earlier that the total_bedrooms attribute has some missing values, so let’s fix this. You have three options:
+- Get rid of the corresponding districts.
+
+- Get rid of the whole attribute.
+
+- Set the values to some value (zero, the mean, the median, etc.).
+
+You can accomplish these easily using DataFrame’s *dropna()*, *drop()*, and *fillna()* methods:
+```Python
+housing.dropna(subset=["total_bedrooms"]) # option 1
+housing.drop("total_bedrooms", axis=1) # option 2
+median = housing["total_bedrooms"].median()
+housing["total_bedrooms"].fillna(median) # option 3
+```
+If you choose option 3, you should compute the median value on the training set, and use it to fill the missing values in the training set, but also don’t forget to save the median value that you have computed. You will need it later to replace missing values in the test set when you want to evaluate your system, and also once the system goes live to replace missing values in new data.
+
+Scikit-Learn provides a handy class to take care of missing values: *Imputer*. Here is how to use it. First, you need to create an Imputer instance, specifying that you want to replace each attribute’s missing values with the median of that attribute:
+```Python
+from sklearn.impute import SimpleImputer
+imputer = SimpleImputer(strategy="median")
+```
+Since the median can only be computed on numerical attributes, we need to create a copy of the data without the text attribute ocean_proximity:
+```Python
+housing_num = housing.drop("ocean_proximity", axis=1)
+```
+
+Now you can fit the imputer instance to the training data using the *fit()* method:
+```Python
+imputer.fit(housing_num)
+```
+The imputer has simply computed the median of each attribute and stored the result in its *statistics_ instance* variable. Only the *total_bedrooms* attribute had missing values, but we cannot be sure that there won’t be any missing values in new data after the system goes live, so it is safer to apply the imputer to all the numerical attributes:
+```Python
+print(imputer.statistics_)
+```
+The ouput is the following:
+
+![Imputer Stats](../img/chp2_imputer_stats.PNG?raw=true "Imputer Stats")
+
+**Now you can use this “trained” imputer to transform the training set by replacing missing values by the learned medians:**
+```Python
+X = imputer.transform(housing_num)
+```
+The result is a plain *Numpy* array containing the transformed features. If you want to put it back into a Pandas *DataFrame*, it’s simple:
+```Python
+housing_tr = pd.DataFrame(X, columns=housing_num.columns)
+```
+>#### Scikit-Learn Desgin
+Scikit-Learn Design
+Scikit-Learn’s API is remarkably well designed. The main design principles are:
+- **Consistency**. All objects share a consistent and simple interface:
+  - *Estimators*. Any object that can estimate some parameters based on a dataset is called an *estimator* (e.g., an imputer is an estimator). The estimation itself is performed by the *fit()* method, and it takes only a dataset as a parameter (or two for supervised learning algorithms; the second dataset contains the labels). Any other parameter needed to guide the estimation process is considered a hyperparameter (such as an imputer’s strategy), and it must be set as an instance variable (generally via a constructor parameter).
+  - *Transformers*. Some estimators (such as an imputer) can also transform a dataset; these are called *transformers*. Once again, the API is quite simple: the transformation is performed by the *transform()* method with the dataset to transform as a parameter. It returns the transformed dataset. This transformation generally relies on the learned parameters, as is the case for an imputer. All transformers also have a convenience method called *fit_transform()* that is equivalent to calling *fit()* and then *transform()* (but sometimes *fit_transform()* is optimized and runs much faster).
+  - *Predictors*. Finally, some estimators are capable of making predictions given a dataset; they are called *predictors*. For example, the LinearRegression model in the previous chapter was a predictor: it predicted life satisfaction given a country’s GDP per capita. A predictor has a *predict()* method that takes a dataset of new instances and returns a dataset of corresponding predictions. It also has a *score()* method that measures the quality of the predictions given a test set (and the corresponding labels in the case of supervised learning algorithms).
+- **Inspection**. All the estimator’s hyperparameters are accessible directly via public instance variables (e.g., *imputer.strategy*), and all the estimator’s learned parameters are also accessible via public instance variables with an underscore suffix (e.g., *imputer.statistics_*).
+- **Nonproliferation of classes**. Datasets are represented as NumPy arrays or SciPy sparse matrices, instead of homemade classes. Hyperparameters are just regular Python strings or numbers.
+- **Composition**. Existing building blocks are reused as much as possible. For example, it is easy to create a Pipeline estimator from an arbitrary sequence of transformers followed by a final estimator, as we will see.
+- **Sensible defaults**. Scikit-Learn provides reasonable default values for most parameters, making it easy to create a baseline working system quickly.
+
+### Handling Text and Categorical attributes
+Earlier we left out the categorical attribute ocean_proximity because it is a text attribute so we cannot compute its median. Most Machine Learning algorithms prefer to work with numbers anyway, so let’s convert these text labels to numbers.
+
+Scikit-Learn provides a transformer for this task called *LabelEncoder*:
+```Python
+from sklearn.preprocessing import LabelEncoder
+
+encoder = LabelEncoder()
+housing_cat = housing["ocean_proximity"]
+housing_cat_encoded = encoder.fit_transform(housing_cat)
+print(housing_cat_encoded)
+```
+Output:
+
+![Label Encoder](../img/chp2_label_encoder.png?raw=true "Label Encoder")
+
+Now we can use this numerical data in any ML algorithm. You can look at the mapping that this encoder has learned using the *classes_* attribute (“<1H OCEAN” is mapped to 0, “INLAND” is mapped to 1, etc.):
+```Python
+print(encoder.classes_)
+```
+Output:
+
+![Classes Decoded](../img/chp2_decode_classes.png?raw=true "Classes Decoded")
+
+One issue with this representation is that ML algorithms will assume that two nearby values are more similar than two distant values. Obviously this is not the case (for example, categories 0 (<1H OCEAN) and 4 (NEAR OCEAN) are more similar than categories 0 (<1H OCEAN) and 1 (INLAND)). To fix this issue, a common solution is to **create one binary attribute per category**: one attribute equal to 1 when the category is “<1H OCEAN” (and 0 otherwise), another attribute equal to 1 when the category is “INLAND” (and 0 otherwise), and so on. This is called *one-hot encoding*, because only one attribute will be equal to 1 (hot), while the others will be 0 (cold).
+
+Scikit-Learn provides a *OneHotEncoder* encoder to convert integer categorical values into one-hot vectors. Let’s encode the categories as one-hot vectors. Note that *fit_transform()* expects a 2D array, but *housing_cat_encoded* is a 1D array, so we need to reshape it:
+```Python
+from sklearn.preprocessing import OneHotEncoder
+encoder = OneHotEncoder(categories='auto')
+housing_cat_1hot = encoder.fit_transform(housing_cat_encoded.reshape(-1,1))
+print(housing_cat_1hot)
+```
+Output:
+
+![One Hot Encoder](../img/chp2_one_hot_encoder.png?raw=true "One Hot Encoder")
+
+Notice that the output is a SciPy sparse matrix, instead of a NumPy array. This is very useful when you have categorical attributes with thousands of categories. After onehot encoding we get a matrix with thousands of columns, and the matrix is full of zeros except for one 1 per row. Using up tons of memory mostly to store zeros would be very wasteful, so instead a sparse matrix only stores the location of the nonzero elements. You can use it mostly like a normal 2D array,19 but if you really want to convert it to a (dense) NumPy array, just call the *toarray()* method:
+```Python
+print(housing_cat_1hot.toarray())
+```
+Output:
+
+![One Hot Encoder Array](../img/chp2_one_hot_encoder_array.png?raw=true "One Hot Encoder Array")
+
+We can apply both transformations (from text categories to integer categories, then from integer categories to one-hot vectors) in one shot using the *LabelBinarizer* class:
+```Python
+from sklearn.preprocessing import LabelBinarizer
+
+housing_cat = housing["ocean_proximity"]
+encoder= LabelBinarizer()
+housing_cat_1hot=encoder.fit_transform(housing_cat)
+print(housing_cat_1hot)
+```
+Output:
+
+![One Hot Encoder Array](../img/chp2_one_hot_encoder_array.png?raw=true "One Hot Encoder Array")
+
+Note that this returns a dense NumPy array by default. You can get a sparse matrix instead by passing *sparse_output=True* to the *LabelBinarizer* constructor.
+
+### Custom Transformers
+Although Scikit-Learn provides many useful transformers, you will need to write your own for tasks such as custom cleanup operations or combining specific attributes. You will want your transformer to work seamlessly with Scikit-Learn functionalities (such as pipelines), and since Scikit-Learn relies on duck typing (not inheritance), all you need is to create a class and implement three methods: *fit()* (returning self), *transform()*, and *fit_transform()*.
+
+You can get the last one for free by simply adding *TransformerMixin* as a base class. Also, if you add *BaseEstimator* as a base class (and avoid \*args and \**kargs in your constructor) you will get two extra methods (*get_params()* and *set_params()*) that will be useful for automatic hyperparameter tuning. For example, here is a small transformer class that adds the combined attributes we discussed earlier:
+```Python
+from sklearn.base import BaseEstimator, TransformerMixin
+
+rooms_ix, bedrooms_ix, population_ix, household_ix = 3, 4, 5, 6
+class CombinedAttributesAdder(BaseEstimator, TransformerMixin):
+    def __init__(self, add_bedrooms_per_room = True): # no *args or **kargs
+        self.add_bedrooms_per_room = add_bedrooms_per_room
+    def fit(self, X, y=None):
+        return self # nothing else to do
+    def transform(self, X, y=None):
+        rooms_per_household = X[:, rooms_ix] / X[:, household_ix]
+        population_per_household = X[:, population_ix] / X[:, household_ix]
+        if self.add_bedrooms_per_room:
+            bedrooms_per_room = X[:, bedrooms_ix] / X[:, rooms_ix]
+            return np.c_[X, rooms_per_household, population_per_household, bedrooms_per_room]
+        else:
+            return np.c_[X, rooms_per_household, population_per_household]
+
+attr_adder = CombinedAttributesAdder(add_bedrooms_per_room=False)
+housing_extra_attribs = attr_adder.transform(housing.values)
+```
+
+In this example the transformer has one hyperparameter, *add_bedrooms_per_room*, set to True by default (it is often helpful to provide sensible defaults). This hyperparameter will allow you to easily find out whether adding this attribute helps the Machine Learning algorithms or not. More generally, you can add a hyperparameter to gate any data preparation step that you are not 100% sure about. The more you automate these data preparation steps, the more combinations you can automatically try out, making it much more likely that you will find a great combination (and saving you a lot of time).
+### Feature Scaling
+One of the most important transformations you need to apply to your data is *feature scaling*. With few exceptions, Machine Learning algorithms don’t perform well when the input numerical attributes have very different scales. This is the case for the housing data: the total number of rooms ranges from about 6 to 39,320, while the median incomes only range from 0 to 15. Note that scaling the target values is generally not required.
+
+There are two common ways to get all attributes to have the same scale: *min-max scaling* and *standardization*.
+
+Min-max scaling (many people call this *normalization*) is quite simple: values are shifted and rescaled so that they end up ranging from 0 to 1. We do this by subtracting the min value and dividing by the max minus the min. Scikit-Learn provides a transformer called MinMaxScaler for this. It has a feature_range hyperparameter that lets you change the range if you don’t want 0–1 for some reason.
+
+Standardization is quite different: first it subtracts the mean value (so standardized values always have a zero mean), and then it divides by the variance so that the resulting distribution has unit variance. Unlike min-max scaling, standardization does not bound values to a specific range, which may be a problem for some algorithms (e.g., neural networks often expect an input value ranging from 0 to 1). However, standardization is much less affected by outliers. For example, suppose a district had a median income equal to 100 (by mistake). Min-max scaling would then crush all the other values from 0–15 down to 0–0.15, whereas standardization would not be much affected. Scikit-Learn provides a transformer called StandardScaler for standardization.
+### Transformation pipelines
+As you can see, there are many data transformation steps that need to be executed in the right order. Fortunately, Scikit-Learn provides the Pipeline class to help with such sequences of transformations. Here is a small pipeline for the numerical attributes:
+```Python
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+num_pipeline = Pipeline([
+      ('imputer', Imputer(strategy="median")),
+      ('attribs_adder', CombinedAttributesAdder()),
+      ('std_scaler', StandardScaler()),
+])
+housing_num_tr = num_pipeline.fit_transform(housing_num)
+```
+The Pipeline constructor takes a list of name/estimator pairs defining a sequence of steps. All but the last estimator must be transformers (i.e., they must have a *fit_transform()* method). The names can be anything you like.
+
+ When you call the pipeline’s *fit()* method, it calls *fit_transform()* sequentially on all transformers, passing the output of each call as the parameter to the next call, until it reaches the final estimator, for which it just calls the *fit()* method.
+
+The pipeline exposes the same methods as the final estimator. In this example, the last estimator is a *StandardScaler*, which is a transformer, so the pipeline has a trans *form()* method that applies all the transforms to the data in sequence (it also has a *fit_transform* method that we could have used instead of calling *fit()* and then *transform()*).
+
+You now have a pipeline for numerical values, and you also need to apply the *LabelBinarizer* on the categorical values: how can you join these transformations into a single pipeline? Scikit-Learn provides a *FeatureUnion* class for this. You give it a list of transformers (which can be entire transformer pipelines), and when its *transform()* method is called it runs each transformer’s *transform()* method in parallel, waits for their output, and then concatenates them and returns the result (and of course calling its *fit()* method calls all each transformer’s *fit()* method). A full pipeline handling both numerical and categorical attributes may look like this:
+```Python
+from sklearn.pipeline import FeatureUnion
+
+num_attribs = list(housing_num)
+cat_attribs = ["ocean_proximity"]
+
+num_pipeline = Pipeline([
+      ('selector', DataFrameSelector(num_attribs)),
+      ('imputer', SimpleImputer(strategy="median")),
+      ('attribs_adder', CombinedAttributesAdder()),
+      ('std_scaler', StandardScaler()),
+])
+cat_pipeline = Pipeline([
+      ('selector', DataFrameSelector(cat_attribs)),
+      ('label_binarizer', MyLabelBinarizer()),
+])
+full_pipeline = FeatureUnion(transformer_list=[
+      ("num_pipeline", num_pipeline),
+      ("cat_pipeline", cat_pipeline),
+])
+```
+Due to an error with LabelBinarizer number of arguments we have to create a new class called MyLabelBinarizer like the following:
+```Python
+class MyLabelBinarizer(TransformerMixin):
+    def __init__(self, *args, **kwargs):
+        self.encoder = LabelBinarizer(*args, **kwargs)
+    def fit(self, x, y=0):
+        self.encoder.fit(x)
+        return self
+    def transform(self, x, y=0):
+        return self.encoder.transform(x)
+
+```
+Each subpipeline starts with a selector transformer: it simply transforms the data by selecting the desired attributes (numerical or categorical), dropping the rest, and converting the resulting DataFrame to a NumPy array. There is nothing in Scikit-Learn to handle Pandas DataFrames, so we need to write a simple custom transformer for this task:
+```Python
+class DataFrameSelector(BaseEstimator, TransformerMixin):
+    def __init__(self, attribute_names):
+        self.attribute_names = attribute_names
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        return X[self.attribute_names].values
+
+```
+Now we can run the whole pipeline simply:
+```Python
+housing_prepared= full_pipeline.fit_transform(housing)
+print(housing_prepared)
+```
+Output:
+
+![Full Pipeline](../img/chp2_full_pipeline.png?raw=true "Full Pipeline")
 
 ## Select a model and train it
 
 ## Fine-tune your model
 
-## Present your solution
 
 ## Launch, monitor, and maintain your system
