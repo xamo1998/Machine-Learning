@@ -515,16 +515,16 @@ The result is a plain *Numpy* array containing the transformed features. If you 
 housing_tr = pd.DataFrame(X, columns=housing_num.columns)
 ```
 >#### Scikit-Learn Desgin
-Scikit-Learn Design
-Scikit-Learn’s API is remarkably well designed. The main design principles are:
-- **Consistency**. All objects share a consistent and simple interface:
-  - *Estimators*. Any object that can estimate some parameters based on a dataset is called an *estimator* (e.g., an imputer is an estimator). The estimation itself is performed by the *fit()* method, and it takes only a dataset as a parameter (or two for supervised learning algorithms; the second dataset contains the labels). Any other parameter needed to guide the estimation process is considered a hyperparameter (such as an imputer’s strategy), and it must be set as an instance variable (generally via a constructor parameter).
-  - *Transformers*. Some estimators (such as an imputer) can also transform a dataset; these are called *transformers*. Once again, the API is quite simple: the transformation is performed by the *transform()* method with the dataset to transform as a parameter. It returns the transformed dataset. This transformation generally relies on the learned parameters, as is the case for an imputer. All transformers also have a convenience method called *fit_transform()* that is equivalent to calling *fit()* and then *transform()* (but sometimes *fit_transform()* is optimized and runs much faster).
-  - *Predictors*. Finally, some estimators are capable of making predictions given a dataset; they are called *predictors*. For example, the LinearRegression model in the previous chapter was a predictor: it predicted life satisfaction given a country’s GDP per capita. A predictor has a *predict()* method that takes a dataset of new instances and returns a dataset of corresponding predictions. It also has a *score()* method that measures the quality of the predictions given a test set (and the corresponding labels in the case of supervised learning algorithms).
-- **Inspection**. All the estimator’s hyperparameters are accessible directly via public instance variables (e.g., *imputer.strategy*), and all the estimator’s learned parameters are also accessible via public instance variables with an underscore suffix (e.g., *imputer.statistics_*).
-- **Nonproliferation of classes**. Datasets are represented as NumPy arrays or SciPy sparse matrices, instead of homemade classes. Hyperparameters are just regular Python strings or numbers.
-- **Composition**. Existing building blocks are reused as much as possible. For example, it is easy to create a Pipeline estimator from an arbitrary sequence of transformers followed by a final estimator, as we will see.
-- **Sensible defaults**. Scikit-Learn provides reasonable default values for most parameters, making it easy to create a baseline working system quickly.
+  Scikit-Learn Design
+  Scikit-Learn’s API is remarkably well designed. The main design principles are:
+  - **Consistency**. All objects share a consistent and simple interface:
+    - *Estimators*. Any object that can estimate some parameters based on a dataset is called an *estimator* (e.g., an imputer is an estimator). The estimation itself is performed by the *fit()* method, and it takes only a dataset as a parameter (or two for supervised learning algorithms; the second dataset contains the labels). Any other parameter needed to guide the estimation process is considered a hyperparameter (such as an imputer’s strategy), and it must be set as an instance variable (generally via a constructor parameter).
+    - *Transformers*. Some estimators (such as an imputer) can also transform a dataset; these are called *transformers*. Once again, the API is quite simple: the transformation is performed by the *transform()* method with the dataset to transform as a parameter. It returns the transformed dataset. This transformation generally relies on the learned parameters, as is the case for an imputer. All transformers also have a convenience method called *fit_transform()* that is equivalent to calling *fit()* and then *transform()* (but sometimes *fit_transform()* is optimized and runs much faster).
+    - *Predictors*. Finally, some estimators are capable of making predictions given a dataset; they are called *predictors*. For example, the LinearRegression model in the previous chapter was a predictor: it predicted life satisfaction given a country’s GDP per capita. A predictor has a *predict()* method that takes a dataset of new instances and returns a dataset of corresponding predictions. It also has a *score()* method that measures the quality of the predictions given a test set (and the corresponding labels in the case of supervised learning algorithms).
+  - **Inspection**. All the estimator’s hyperparameters are accessible directly via public instance variables (e.g., *imputer.strategy*), and all the estimator’s learned parameters are also accessible via public instance variables with an underscore suffix (e.g., *imputer.statistics_*).
+  - **Nonproliferation of classes**. Datasets are represented as NumPy arrays or SciPy sparse matrices, instead of homemade classes. Hyperparameters are just regular Python strings or numbers.
+  - **Composition**. Existing building blocks are reused as much as possible. For example, it is easy to create a Pipeline estimator from an arbitrary sequence of transformers followed by a final estimator, as we will see.
+  - **Sensible defaults**. Scikit-Learn provides reasonable default values for most parameters, making it easy to create a baseline working system quickly.
 
 ### Handling Text and Categorical attributes
 Earlier we left out the categorical attribute ocean_proximity because it is a text attribute so we cannot compute its median. Most Machine Learning algorithms prefer to work with numbers anyway, so let’s convert these text labels to numbers.
@@ -695,8 +695,213 @@ Output:
 ![Full Pipeline](../img/chp2_full_pipeline.png?raw=true "Full Pipeline")
 
 ## Select a model and train it
+At last! You framed the problem, you got the data and explored it, you sampled a training set and a test set, and you wrote transformation pipelines to clean up and prepare your data for Machine Learning algorithms automatically. You are now ready to select and train a Machine Learning model.
+### Training and Evaluating on the Training Setting
+The good news is that thanks to all these previous steps, things are now going to be much simpler than you might think. Let’s first train a Linear Regression model, like we did in the previous chapter:
+```Python
+from sklearn.linear_model import LinearRegression
 
+lin_reg = LinearRegression()
+lin_reg.fit(housing_prepared, housing_labels)
+```
+Done! You now have a working Linear Regression model. Let’s try it out on a few instances from the training set:
+```Python
+some_data = housing.iloc[:5]
+some_labels = housing_labels.iloc[:5]
+some_data_prepared = full_pipeline.transform(some_data)
+print("Predictions:\t", lin_reg.predict(some_data_prepared))
+print("Labels:\t\t", list(some_labels))
+```
+Output:
+
+![Predictions](../img/chp2_predictions.PNG?raw=true "Predictions")
+
+It works, although the predictions are not exactly accurate. Let’s measure this regression model’s *RMSE* on the whole training set using Scikit-Learn’s *mean_squared_error* function:
+```Python
+from sklearn.metrics import mean_squared_error
+
+housing_predictions = lin_reg.predict(housing_prepared)
+lin_mse = mean_squared_error(housing_labels, housing_predictions)
+lin_rmse = np.sqrt(lin_mse)
+print(lin_rmse)
+```
+Output:
+
+![RMSE](../img/chp2_rmse.png?raw=true "RMSE")
+
+Okay, this is better than nothing but clearly not a great score: most districts’ *median_housing_values* range between $120,000 and $265,000, so a typical prediction error of $68,628 is not very satisfying. **This is an example of a model underfitting the training data**. When this happens it can mean that the features do not provide enough information to make good predictions, or that the model is not powerful enough. As we saw in the previous chapter, the main ways to fix underfitting are to select a more powerful model, to feed the training algorithm with better features, or to reduce the constraints on the model. This model is not regularized, so this rules out the last option. You could try to add more features (e.g., the log of the population), but first let’s try a more complex model to see how it does.
+
+Let’s train a *DecisionTreeRegressor*. This is a powerful model, capable of finding complex nonlinear relationships in the data (Decision Trees are presented in more detail in [Chapter 6]()). The code should look familiar by now:
+```Python
+from sklearn.tree import DecisionTreeRegressor
+
+tree_reg = DecisionTreeRegressor()
+tree_reg.fit(housing_prepared, housing_labels)
+```
+Now that the model is trained, let’s evaluate it on the training set:
+```Python
+tree_mse = mean_squared_error(housing_labels, housing_predictions)
+tree_rmse = np.sqrt(tree_mse)
+print(tree_rmse)
+```
+Output:
+
+![RMSE Tree](../img/chp2_rmse_tree.png?raw=true "RMSE Tree")
+
+Wait, what!? No error at all? Could this model really be absolutely perfect? Of course, it is much more likely that the model has badly overfit the data. How can you be sure? As we saw earlier, you don’t want to touch the test set until you are ready to launch a model you are confident about, so you need to use part of the training set for training, and part for model validation.
+
+### Better Evaluation USing Cross-validation
+One way to evaluate the Decision Tree model would be to use the *train_test_split* function to split the training set into a smaller training set and a validation set, then train your models against the smaller training set and evaluate them against the validation set. It’s a bit of work, but nothing too difficult and it would work fairly well.
+
+A great alternative is to use Scikit-Learn’s *cross-validation* feature. The following code performs *K-fold cross-validation*: it randomly splits the training set into 10 distinct subsets called folds, then it trains and evaluates the Decision Tree model 10 times, picking a different fold for evaluation every time and training on the other 9 folds.
+
+The result is an array containing the 10 evaluation scores:
+```Python
+from sklearn.model_selection import cross_val_score
+
+scores = cross_val_score(tree_reg, housing_prepared, housing_labels,
+scoring="neg_mean_squared_error", cv=10)
+rmse_scores = np.sqrt(-scores)
+```
+Let's create a function to show the results:
+```Python
+def display_scores(scores):
+    print("Scores:", scores)
+    print("Mean:", scores.mean())
+    print("Standard deviation:", scores.std())
+```
+Let's look at the results:
+```Python
+display_scores(rmse_scores)
+```
+Output:
+
+![RMSE Tree Score](../img/chp2_rmse_tree_score.png?raw=true "RMSE Tree Score")
+
+Now the Decision Tree doesn’t look as good as it did earlier. In fact, it seems to perform worse than the Linear Regression model! Notice that cross-validation allows you to get not only an estimate of the performance of your model, but also a measure of how precise this estimate is (i.e., its standard deviation). The Decision Tree has a score of approximately 71,200, generally ±3,100. You would not have this information if you just used one validation set. But cross-validation comes at the cost of training the model several times, so it is not always possible.
+
+Let’s compute the same scores for the Linear Regression model just to be sure:
+```Python
+scores = cross_val_score(lin_reg, housing_prepared, housing_labels, scoring="neg_mean_squared_error", cv=10)
+rmse_scores = np.sqrt(-scores)
+display_scores(rmse_scores)
+```
+Output:
+
+![RMSE Tree Score](../img/chp2_rmse_lin_score.png?raw=true "RMSE Tree Score")
+
+That’s right: the Decision Tree model is overfitting so badly that it performs worse than the Linear Regression model.
+
+Let’s try one last model now: the *RandomForestRegressor*. As we will see in [Chapter 7](), Random Forests work by training many Decision Trees on random subsets of the features, then averaging out their predictions. Building a model on top of many other models is called *Ensemble Learning*, and it is often a great way to push ML algorithms even further. We will skip most of the code since it is essentially the same as for the other models:
+```Python
+from sklearn.ensemble import RandomForestRegressor
+
+forest_reg = RandomForestRegressor()
+forest_reg.fit(housing_prepared, housing_labels)
+
+housing_predictions = forest_reg.predict(housing_prepared)
+
+forest_mse = mean_squared_error(housing_labels, housing_predictions)
+forest_rmse = np.sqrt(forest_mse)
+print(forest_rmse)
+
+scores = cross_val_score(forest_reg, housing_prepared, housing_labels, scoring="neg_mean_squared_error", cv=10)
+rmse_scores = np.sqrt(-scores)
+display_scores(rmse_scores)
+```
+Output:
+
+![RMSE Forest](../img/chp2_rmse_forest.png?raw=true "RMSE Forest")
+
+Wow, this is much better: Random Forests look very promising. However, note that the score on the training set is still much lower than on the validation sets, meaning that the model is still overfitting the training set. Possible solutions for overfitting are to simplify the model, constrain it (i.e., regularize it), or get a lot more training data.
+
+However, before you dive much deeper in Random Forests, you should try out many other models from various categories of Machine Learning algorithms (several Support Vector Machines with different kernels, possibly a neural network, etc.), without spending too much time tweaking the hyperparameters. The goal is to shortlist a few (two to five) promising models.
+### Save your Data
+You should save every model you experiment with, so you can come back easily to any model you want. Make sure you save both the hyperparameters and the trained parameters, as well as the cross-validation scores and perhaps the actual predictions as well. This will allow you to easily compare scores across model types, and compare the types of errors they make. You can easily save Scikit-Learn models by using Python’s pickle module, or using *sklearn.externals.joblib*, which is more efficient at serializing large NumPy arrays:
+```Python
+from sklearn.externals import joblib
+joblib.dump(my_model, "my_model.pkl")
+# and later...
+my_model_loaded = joblib.load("my_model.pkl")
+```
 ## Fine-tune your model
+Let’s assume that you now have a shortlist of promising models. You now need to fine-tune them. Let’s look at a few ways you can do that.
+### Grid Search
+One way to do that would be to fiddle with the hyperparameters manually, until you find a great combination of hyperparameter values. This would be very tedious work, and you may not have time to explore many combinations.
 
+Instead you should get Scikit-Learn’s *GridSearchCV* to search for you. All you need to do is tell it which hyperparameters you want it to experiment with, and what values to try out, and it will evaluate all the possible combinations of hyperparameter values, using cross-validation. For example, the following code searches for the best combination of hyperparameter values for the *RandomForestRegressor*:
+```Python
+from sklearn.model_selection import GridSearchCV
+
+param_grid = [ {'n_estimators': [3, 10, 30], 'max_features': [2, 4, 6, 8]}, {'bootstrap': [False], 'n_estimators': [3, 10], 'max_features': [2, 3, 4]},]
+forest_reg = RandomForestRegressor()
+grid_search = GridSearchCV(forest_reg, param_grid, cv=5,
+scoring='neg_mean_squared_error')
+grid_search.fit(housing_prepared, housing_labels)
+```
+This *param_grid* tells Scikit-Learn to first evaluate all 3 × 4 = 12 combinations of *n_estimators* and *max_features* hyperparameter values specified in the first dict (don’t worry about what these hyperparameters mean for now; they will be explained in [Chapter 7]()), then try all 2 × 3 = 6 combinations of hyperparameter values in the second dict, but this time with the bootstrap hyperparameter set to False instead of True (which is the default value for this hyperparameter).
+
+All in all, the grid search will explore 12 + 6 = 18 combinations of *RandomForestRegressor* hyperparameter values, and it will train each model five times (since we are using five-fold cross validation). In other words, all in all, there will be 18 × 5 = 90 rounds of training! It may take quite a long time, but when it is done you can get the best combination of parameters like this:
+```Python
+print(grid_search.best_params_)
+```
+Output:
+
+![Best Combination](../img/chp2_fine_tune.png?raw=true "Best Combination")
+
+Since 30 is the maximum value of n_estimators that was evaluated,
+you should probably evaluate higher values as well, since the
+score may continue to improve.
+
+Let's do this and also print the best estimator:
+```Python
+
+param_grid = [ {'n_estimators': [3, 10, 60, 100, 200], 'max_features': [2, 4, 6, 8]}, {'bootstrap': [False], 'n_estimators': [3, 10], 'max_features': [2, 3, 4]},]
+
+forest_reg = RandomForestRegressor()
+grid_search = GridSearchCV(forest_reg, param_grid, cv=5,
+scoring='neg_mean_squared_error')
+grid_search.fit(housing_prepared, housing_labels)
+
+print(grid_search.best_params_)
+print(grid_search.best_estimator_)
+```
+Output:
+
+![Best Combination 2](../img/chp2_fine_tune2.png?raw=true "Best Combination 2")
+
+Now let's take the *RandomForestRegressor* that it told us to use and print the RMSE to see th differences:
+```Python
+forest_reg=RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=None,
+                      max_features=8, max_leaf_nodes=None,
+                      min_impurity_decrease=0.0, min_impurity_split=None,
+                      min_samples_leaf=1, min_samples_split=2,
+                      min_weight_fraction_leaf=0.0, n_estimators=200,
+                      n_jobs=None, oob_score=False, random_state=None,
+                      verbose=0, warm_start=False)
+forest_reg.fit(housing_prepared, housing_labels)
+
+housing_predictions = forest_reg.predict(housing_prepared)
+
+forest_mse = mean_squared_error(housing_labels, housing_predictions)
+forest_rmse = np.sqrt(forest_mse)
+print(forest_rmse)
+
+scores = cross_val_score(forest_reg, housing_prepared, housing_labels, scoring="neg_mean_squared_error", cv=10)
+rmse_scores = np.sqrt(-scores)
+display_scores(rmse_scores)
+```
+Output:
+
+![Predictions 2](../img/chp2_predictions2.png?raw=true "Predictions 2")
 
 ## Launch, monitor, and maintain your system
+Perfect, you got approval to launch! You need to get your solution ready for production, in particular by plugging the production input data sources into your system and writing tests.
+
+You also need to write monitoring code to check your system’s live performance at regular intervals and trigger alerts when it drops. This is important to catch not only sudden breakage, but also performance degradation. This is quite common because models tend to “rot” as data evolves over time, unless the models are regularly trained on fresh data.
+
+Evaluating your system’s performance will require sampling the system’s predictions and evaluating them. This will generally require a human analysis. These analysts may be field experts, or workers on a crowdsourcing platform (such as Amazon Mechanical Turk or CrowdFlower). Either way, you need to plug the human evaluation pipeline into your system.
+
+You should also make sure you evaluate the system’s input data quality. Sometimes performance will degrade slightly because of a poor quality signal (e.g., a malfunctioning sensor sending random values, or another team’s output becoming stale), but it may take a while before your system’s performance degrades enough to trigger an alert. If you monitor your system’s inputs, you may catch this earlier. Monitoring the inputs is particularly important for online learning systems.
+
+Finally, you will generally want to train your models on a regular basis using fresh data. You should automate this process as much as possible. If you don’t, you are very likely to refresh your model only every six months (at best), and your system’s performance may fluctuate severely over time. If your system is an online learning system, you should make sure you save snapshots of its state at regular intervals so you can easily roll back to a previously working state.

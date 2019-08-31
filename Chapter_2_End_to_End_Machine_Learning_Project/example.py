@@ -14,6 +14,13 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import FeatureUnion
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
+
 
 rooms_ix, bedrooms_ix, population_ix, household_ix = 3, 4, 5, 6
 class CombinedAttributesAdder(BaseEstimator, TransformerMixin):
@@ -46,6 +53,11 @@ class DataFrameSelector(BaseEstimator, TransformerMixin):
         return self
     def transform(self, X):
         return X[self.attribute_names].values
+
+def display_scores(scores):
+    print("Scores:", scores)
+    print("Mean:", scores.mean())
+    print("Standard deviation:", scores.std())
 
 def load_housing_data(housing_path="dataset\housing"):
     csv_path= os.path.join(housing_path,"housing.csv")
@@ -200,4 +212,81 @@ full_pipeline = FeatureUnion(transformer_list=[
 
 housing_prepared= full_pipeline.fit_transform(housing)
 #print(housing_prepared)
-print(housing_prepared.shape)
+#print(housing_prepared.shape)
+
+
+some_data = housing.iloc[:5]
+some_labels = housing_labels.iloc[:5]
+some_data_prepared = full_pipeline.transform(some_data)
+
+'''
+lin_reg=LinearRegression()
+lin_reg.fit(housing_prepared, housing_labels)
+
+tree_reg = DecisionTreeRegressor()
+tree_reg.fit(housing_prepared, housing_labels)
+'''
+
+'''
+param_grid = [ {'n_estimators': [3, 10, 30], 'max_features': [2, 4, 6, 8]}, {'bootstrap': [False], 'n_estimators': [3, 10], 'max_features': [2, 3, 4]},]
+
+forest_reg = RandomForestRegressor()
+forest_reg.fit(housing_prepared, housing_labels)
+#print("Predictions:\t", lin_reg.predict(some_data_prepared))
+#print("Labels:\t\t", list(some_labels))
+
+housing_predictions = forest_reg.predict(housing_prepared)
+
+lin_mse = mean_squared_error(housing_labels, housing_predictions)
+lin_rmse = np.sqrt(lin_mse)
+print(lin_rmse)
+
+
+tree_mse = mean_squared_error(housing_labels, housing_predictions)
+tree_rmse = np.sqrt(tree_mse)
+
+forest_mse = mean_squared_error(housing_labels, housing_predictions)
+forest_rmse = np.sqrt(forest_mse)
+print(forest_rmse)
+
+
+scores = cross_val_score(forest_reg, housing_prepared, housing_labels, scoring="neg_mean_squared_error", cv=10)
+
+rmse_scores = np.sqrt(-scores)
+
+display_scores(rmse_scores)
+'''
+
+
+
+param_grid = [ {'n_estimators': [3, 10, 60, 100, 200], 'max_features': [2, 4, 6, 8]}, {'bootstrap': [False], 'n_estimators': [3, 10], 'max_features': [2, 3, 4]},]
+
+forest_reg = RandomForestRegressor()
+grid_search = GridSearchCV(forest_reg, param_grid, cv=5,
+scoring='neg_mean_squared_error')
+grid_search.fit(housing_prepared, housing_labels)
+
+print(grid_search.best_params_)
+print(grid_search.best_estimator_)
+
+
+'''
+forest_reg=RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=None,
+                      max_features=8, max_leaf_nodes=None,
+                      min_impurity_decrease=0.0, min_impurity_split=None,
+                      min_samples_leaf=1, min_samples_split=2,
+                      min_weight_fraction_leaf=0.0, n_estimators=200,
+                      n_jobs=None, oob_score=False, random_state=None,
+                      verbose=0, warm_start=False)
+forest_reg.fit(housing_prepared, housing_labels)
+
+housing_predictions = forest_reg.predict(housing_prepared)
+
+forest_mse = mean_squared_error(housing_labels, housing_predictions)
+forest_rmse = np.sqrt(forest_mse)
+print(forest_rmse)
+
+scores = cross_val_score(forest_reg, housing_prepared, housing_labels, scoring="neg_mean_squared_error", cv=10)
+rmse_scores = np.sqrt(-scores)
+display_scores(rmse_scores)
+'''

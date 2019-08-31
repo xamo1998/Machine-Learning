@@ -6,6 +6,7 @@ I am going to be using the following repository: [hanson-ml](https://github.com/
 
 - [Chapter 1: The Machine Learning Landscape](Chapter_1_The_machine_Learning_Landscape)
 - [Chapter 2: End-to-End Machine Learning Project](Chapter_2_End_to_End_Machine_Learning_Project)
+- [Chapter 3: Classification](Chapter_3_Classification)
 
 ## installation
 
