@@ -893,7 +893,7 @@ display_scores(rmse_scores)
 ```
 Output:
 
-![Predictions 2](../img/chp2_predictions2.png?raw=true "Predictions 2")
+![Predictions 2](../img/chp2_predictions2.PNG?raw=true "Predictions 2")
 
 ## Launch, monitor, and maintain your system
 Perfect, you got approval to launch! You need to get your solution ready for production, in particular by plugging the production input data sources into your system and writing tests.
